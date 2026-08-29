@@ -1,0 +1,266 @@
+{
+  "calibration/calibration_config.json": {
+    "mtime": 1787873636.8298752,
+    "seen": 1787898009.465518,
+    "ast_hash": "3973927eaad5b66cc5039891638e288a",
+    "semantic_hash": ""
+  },
+  "cantera_examples/ic_engine.py": {
+    "mtime": 1787874874.7834496,
+    "seen": 1787898009.465518,
+    "ast_hash": "68544947e028f810d7a1849cac24803f",
+    "semantic_hash": ""
+  },
+  "engine_model/outlet_pressure_sweep.py": {
+    "mtime": 1787883385.561004,
+    "seen": 1787898009.465518,
+    "ast_hash": "65fe770b07168040e70f2b044261b5c0",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_1_rotax_geometry.py": {
+    "mtime": 1787876435.740787,
+    "seen": 1787898009.465518,
+    "ast_hash": "786ebe82b850e110dd4d909114994332",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_closed_reactor_compression_test.py": {
+    "mtime": 1787886115.5952182,
+    "seen": 1787898009.465518,
+    "ast_hash": "7e6c95e72737bd201dafe5cf9f89bfd0",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_closed_reactor_wall_test.py": {
+    "mtime": 1787886460.3477478,
+    "seen": 1787898009.465518,
+    "ast_hash": "18273eca062fb4d3a142952bea12e842",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_corrected_timing_diagnostic.py": {
+    "mtime": 1787889452.1703432,
+    "seen": 1787898009.465518,
+    "ast_hash": "51e17c6c21188262168f4933426acd19",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_func1_diagnostic.py": {
+    "mtime": 1787882201.164705,
+    "seen": 1787898009.465518,
+    "ast_hash": "7257f4de09077340299e4ff3245cef31",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_ab_control.py": {
+    "mtime": 1787883100.1088593,
+    "seen": 1787898009.465518,
+    "ast_hash": "9e7060dde19fefc9e60306b3121f853d",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_ab_test.py": {
+    "mtime": 1787882877.497464,
+    "seen": 1787898009.465518,
+    "ast_hash": "bdbe673b7ff82813034dab5f41269d99",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_diagnostic.py": {
+    "mtime": 1787889836.9086213,
+    "seen": 1787898009.465518,
+    "ast_hash": "66f0b0a99dad5f1291a5b4a5fa666754",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_intake_trapping_diagnostic.py": {
+    "mtime": 1787889330.604447,
+    "seen": 1787898009.465518,
+    "ast_hash": "7e2d099a08b0adec9358de0be43b25fe",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_motoring_diagnostic.py": {
+    "mtime": 1787884066.81821,
+    "seen": 1787898009.465518,
+    "ast_hash": "3d8f7517a6ff10e0a25fad6b8b3b74a6",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_motoring_sealed_test.py": {
+    "mtime": 1787888119.801996,
+    "seen": 1787898009.465518,
+    "ast_hash": "a15b5a276c51ad1039821b75c362630f",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_na_baseline.py": {
+    "mtime": 1787878337.5214965,
+    "seen": 1787898009.465518,
+    "ast_hash": "024c186fd966614ce8c81cf3a2afae53",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_wall_only_verification.py": {
+    "mtime": 1787889081.7779748,
+    "seen": 1787898009.465518,
+    "ast_hash": "15492e324b0f434cd24684e56c62534b",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_3_deficit_isolation_diagnostic.py": {
+    "mtime": 1787895418.5443895,
+    "seen": 1787898009.465518,
+    "ast_hash": "c039b766ef5bdf4906d6b7f660a3155e",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_3_fuel_metered_combustion.py": {
+    "mtime": 1787899211.9118721,
+    "seen": 1787918998.298028,
+    "ast_hash": "f74896dda9df212f91b60f3d955ff32c",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_3_sealevel_validation.py": {
+    "mtime": 1787893843.8429422,
+    "seen": 1787898009.465518,
+    "ast_hash": "32e15fa4ad1cb788a1d9471da9f25ab2",
+    "semantic_hash": ""
+  },
+  "engine_model/volume_function_test.py": {
+    "mtime": 1787887412.2042475,
+    "seen": 1787898009.465518,
+    "ast_hash": "f0aabc5c6e4e85e966a86e73974b60e1",
+    "semantic_hash": ""
+  },
+  "engine_model/wall_closed_compression_verified.py": {
+    "mtime": 1787887910.343035,
+    "seen": 1787898009.465518,
+    "ast_hash": "14d149770672850b01d798a53504e95e",
+    "semantic_hash": ""
+  },
+  "rotax_reference_model_v2.py": {
+    "mtime": 1787868723.0051908,
+    "seen": 1787898009.465518,
+    "ast_hash": "8c22acc44962a81a78a6dc61c7d07c4a",
+    "semantic_hash": ""
+  },
+  "smoke_test_rotax.py": {
+    "mtime": 1787868973.0861294,
+    "seen": 1787898009.465518,
+    "ast_hash": "48662332385a161dbda4e45e634c90e6",
+    "semantic_hash": ""
+  },
+  "test_rotax_reference_model.py": {
+    "mtime": 1787868828.1052482,
+    "seen": 1787898009.465518,
+    "ast_hash": "b7a61fcd306f23fb7055dbe13e9a2cfc",
+    "semantic_hash": ""
+  },
+  ".github/copilot-instructions.md": {
+    "mtime": 1787894436.2659864,
+    "seen": 1787898009.465518,
+    "ast_hash": "2b23503628bf2ec71d067a85ca8948ab",
+    "semantic_hash": ""
+  },
+  "config/rotax_915is_engine_parameters.md": {
+    "mtime": 1787871050.0112276,
+    "seen": 1787898009.465518,
+    "ast_hash": "9b960ca2ff1ef957c4fdd4c237ad2a75",
+    "semantic_hash": ""
+  },
+  "config/rotax_915is_missing_parameters.md": {
+    "mtime": 1787871057.5578823,
+    "seen": 1787898009.465518,
+    "ast_hash": "7ad6f05eddc959c432a46011be53282b",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_ab_pressure.png": {
+    "mtime": 1787882890.93633,
+    "seen": 1787898009.465518,
+    "ast_hash": "cdb53eb99b979ea205e79f14bee44813",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_ab_pv.png": {
+    "mtime": 1787882891.1762989,
+    "seen": 1787898009.465518,
+    "ast_hash": "050cf38b850db5c921887b98d2edbb8c",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_control_pressure.png": {
+    "mtime": 1787883137.3581412,
+    "seen": 1787898009.465518,
+    "ast_hash": "57ccba1ce600c04c3c2b98f045d59926",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_control_pv.png": {
+    "mtime": 1787883137.4851449,
+    "seen": 1787898009.465518,
+    "ast_hash": "c4ee87cb14dee301bae893873428fe63",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_pressure.png": {
+    "mtime": 1787889707.6398897,
+    "seen": 1787898009.465518,
+    "ast_hash": "6820d51740acdc948b222cbc320b610d",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_gas_exchange_pv.png": {
+    "mtime": 1787889707.7596762,
+    "seen": 1787898009.465518,
+    "ast_hash": "6fce4079471a430c582f8bec83d88c77",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_2_pv_diagnostic.png": {
+    "mtime": 1787878814.1499357,
+    "seen": 1787898009.465518,
+    "ast_hash": "3ae47dc476e654e54cbcb7b51eab26cb",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_3_hybrid_engine_output.py": {
+    "mtime": 1787907394.567362,
+    "seen": 1787918998.298028,
+    "ast_hash": "3c8cd4516ac8646db6c1bab5c2bd07d6",
+    "semantic_hash": ""
+  },
+  "engine_model/stage1_3_hybrid_validation.py": {
+    "mtime": 1787903494.9987743,
+    "seen": 1787918998.298028,
+    "ast_hash": "050d6cf7e030861dc600726f178e317e",
+    "semantic_hash": ""
+  },
+  "engine_model/stage2_engine_state_smoke_validation.py": {
+    "mtime": 1787908250.890331,
+    "seen": 1787918998.298028,
+    "ast_hash": "8f65455c20c62241c21c8804b1f3251c",
+    "semantic_hash": ""
+  },
+  "engine_model/stage3_altitude_profile_validation.py": {
+    "mtime": 1787909533.344206,
+    "seen": 1787918998.298028,
+    "ast_hash": "13b9a8378c34f40d0816312bd71bfc90",
+    "semantic_hash": ""
+  },
+  "engine_model/stage4_health_parameters.py": {
+    "mtime": 1787918167.5480468,
+    "seen": 1787918998.298028,
+    "ast_hash": "84d62b5c59432640aa3f7b99e3262692",
+    "semantic_hash": ""
+  },
+  "engine_model/stage4_health_validation.py": {
+    "mtime": 1787915933.7018516,
+    "seen": 1787918998.298028,
+    "ast_hash": "1aba85598ecfc330bd64a9c5a395e02d",
+    "semantic_hash": ""
+  },
+  "engine_model/stage3_outputs/stage3_fuel_flow_vs_altitude.png": {
+    "mtime": 1787909549.498351,
+    "seen": 1787918998.298028,
+    "ast_hash": "217fa075d4f996d754bafcab31e83632",
+    "semantic_hash": ""
+  },
+  "engine_model/stage3_outputs/stage3_plenum_pressure_vs_altitude.png": {
+    "mtime": 1787909549.6118908,
+    "seen": 1787918998.298028,
+    "ast_hash": "f3a287ab7acac64103dbc2b33dcc9f42",
+    "semantic_hash": ""
+  },
+  "engine_model/stage3_outputs/stage3_power_vs_altitude.png": {
+    "mtime": 1787909549.2727447,
+    "seen": 1787918998.298028,
+    "ast_hash": "7353bf64403f258c7abd66871493c879",
+    "semantic_hash": ""
+  },
+  "engine_model/stage3_outputs/stage3_torque_vs_altitude.png": {
+    "mtime": 1787909549.3855119,
+    "seen": 1787918998.298028,
+    "ast_hash": "4bacb672ab119df478bbe3ee239fa509",
+    "semantic_hash": ""
+  }
+}

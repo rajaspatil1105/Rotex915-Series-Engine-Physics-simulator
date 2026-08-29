@@ -1,0 +1,23 @@
+{
+  "0": "stage1_3_fuel_metered_combustion.py",
+  "1": "crank_angle",
+  "2": "RotaxReferenceModel",
+  "3": "stage4_health_validation.py",
+  "4": "Stage13HybridEngineOutput",
+  "5": "stage1_2_func1_diagnostic.py",
+  "6": "stage2_engine_state_smoke_validation.py",
+  "7": "stage1_2_closed_reactor_compression_test.py",
+  "8": "stage1_2_intake_trapping_diagnostic.py",
+  "9": "stage1_2_motoring_sealed_test.py",
+  "10": "stage1_2_na_baseline.py",
+  "12": "stage1_2_closed_reactor_wall_test.py",
+  "13": "stage1_2_corrected_timing_diagnostic.py",
+  "14": "stage1_2_wall_only_verification.py",
+  "15": "wall_closed_compression_verified.py",
+  "16": "stage1_1_rotax_geometry.py",
+  "18": "stage1_2_motoring_diagnostic.py",
+  "19": "volume_function_test.py",
+  "20": "rotax_915is_engine_parameters.md",
+  "21": "rotax_915is_missing_parameters.md",
+  "22": "copilot-instructions.md"
+}

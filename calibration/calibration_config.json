@@ -1,0 +1,7 @@
+{
+  "reference_dataset": "..\\rotax_915is_performance_map.csv",
+  "reference_model": "..\\rotax_reference_model_v2.py",
+  "output_directory": "results",
+  "calibration_status": "PREPARATION_ONLY",
+  "optimization_status": "NOT_STARTED"
+}

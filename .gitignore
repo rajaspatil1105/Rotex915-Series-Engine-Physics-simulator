@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Generated datasets
+stage6_outputs/
+stage7_outputs/
+*_dataset.csv
+*.parquet
+
+# Temporary files
+_mission_temp/
+tmp/
+temp/
+
+# Logs
+*.log
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated Stage 5 data
+stage5_outputs/*.csv
