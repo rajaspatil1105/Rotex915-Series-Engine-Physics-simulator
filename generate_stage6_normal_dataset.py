@@ -1,42 +1,45 @@
 """
 STAGE 6 - Healthy / Normal Dataset Generator
+FAULT-TOLERANT + CHECKPOINTED VERSION
 
 Generates the healthy baseline dataset from the validated Stage 5 pipeline.
 
-Design:
-    500 engine IDs
+Configuration:
+    250 virtual engines
     6 mission types per engine
-    3000 complete mission runs
+    1500 total mission runs
+    1-second timestep
 
-Important:
-    - Stage 1-5 production code is NOT modified.
+Behavior:
     - One mission is generated at a time.
-    - Each mission is written immediately to CSV.
-    - Telemetry rows are not accumulated in RAM.
-    - Engine IDs and mission IDs are unique.
-    - Random seeds are deterministic and unique.
-    - Stage 5's validated 1-second timestep is used.
-    - No artificial engine-physics variation is injected here.
-      That must be implemented at the model layer rather than by
-      randomly changing telemetry after simulation.
+    - Successful mission rows are written immediately.
+    - CSV is flushed after every mission.
+    - Failed missions are logged separately and skipped.
+    - A checkpoint is written after EVERY mission.
+    - If the runtime stops/restarts, completed missions are skipped.
+    - Existing successful data is preserved.
+    - Existing failed missions are preserved.
+    - No artificial engine-physics variation is injected.
 
-Output:
+Outputs:
     stage6_outputs/normal_healthy_dataset.csv
-
-The resulting number of rows is determined by the complete mission
-durations. It may be above or below exactly 2,000,000 rows.
+    stage6_outputs/failed_missions.csv
+    stage6_outputs/stage6_checkpoint.json
 """
 
 from __future__ import annotations
 
 import csv
+import json
 import sys
 import time
+import traceback
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Repository setup
-# ---------------------------------------------------------------------------
+
+# ============================================================================
+# REPOSITORY SETUP
+# ============================================================================
 
 ROOT = Path(__file__).resolve().parent
 
@@ -44,9 +47,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-# ---------------------------------------------------------------------------
-# Stage 5 imports
-# ---------------------------------------------------------------------------
+# ============================================================================
+# STAGE 5 IMPORTS
+# ============================================================================
 
 from engine_model.stage5_mission_config import (
     MISSION_TYPE_NORMAL,
@@ -69,36 +72,56 @@ from engine_model.stage5_simulation_pipeline import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Dataset configuration
-# ---------------------------------------------------------------------------
+# ============================================================================
+# DATASET CONFIGURATION
+# ============================================================================
 
-NUM_ENGINES = 500
+NUM_ENGINES = 250
 
 TIMESTEP_S = 1.0
 
 RANDOM_SEED_BASE = 1_000_000
 
 OUTPUT_DIR = ROOT / "stage6_outputs"
-OUTPUT_FILE = OUTPUT_DIR / "normal_healthy_dataset.csv"
 
-# Set this to True if you want to start from zero.
-# If False, an existing file is continued safely only if its structure
-# matches this generator.
-OVERWRITE_OUTPUT = True
+OUTPUT_FILE = (
+    OUTPUT_DIR /
+    "normal_healthy_dataset.csv"
+)
+
+FAILED_FILE = (
+    OUTPUT_DIR /
+    "failed_missions.csv"
+)
+
+CHECKPOINT_FILE = (
+    OUTPUT_DIR /
+    "stage6_checkpoint.json"
+)
 
 
-# ---------------------------------------------------------------------------
-# Mission builders
-# ---------------------------------------------------------------------------
+# ============================================================================
+# MISSION BUILDERS
+# ============================================================================
 
 MISSION_BUILDERS = {
-    MISSION_TYPE_NORMAL: build_normal_mission_config,
-    MISSION_TYPE_HIGH_ALTITUDE: build_high_altitude_mission_config,
-    MISSION_TYPE_ENDURANCE: build_endurance_mission_config,
-    MISSION_TYPE_HOT_WEATHER: build_hot_weather_mission_config,
-    MISSION_TYPE_HIGH_POWER: build_high_power_mission_config,
-    MISSION_TYPE_RAPID_THROTTLE: build_rapid_throttle_mission_config,
+    MISSION_TYPE_NORMAL:
+        build_normal_mission_config,
+
+    MISSION_TYPE_HIGH_ALTITUDE:
+        build_high_altitude_mission_config,
+
+    MISSION_TYPE_ENDURANCE:
+        build_endurance_mission_config,
+
+    MISSION_TYPE_HOT_WEATHER:
+        build_hot_weather_mission_config,
+
+    MISSION_TYPE_HIGH_POWER:
+        build_high_power_mission_config,
+
+    MISSION_TYPE_RAPID_THROTTLE:
+        build_rapid_throttle_mission_config,
 }
 
 
@@ -112,14 +135,15 @@ MISSION_TYPES = (
 )
 
 
-# ---------------------------------------------------------------------------
-# Utility functions
-# ---------------------------------------------------------------------------
+# ============================================================================
+# IDENTIFIERS / SEEDS
+# ============================================================================
 
-def make_seed(engine_number: int, mission_number: int) -> int:
-    """
-    Generate a deterministic unique seed for every engine/mission pair.
-    """
+def make_seed(
+    engine_number: int,
+    mission_number: int,
+) -> int:
+
     return (
         RANDOM_SEED_BASE
         + engine_number * 100
@@ -127,7 +151,10 @@ def make_seed(engine_number: int, mission_number: int) -> int:
     )
 
 
-def make_engine_id(engine_number: int) -> str:
+def make_engine_id(
+    engine_number: int,
+) -> str:
+
     return f"ENG_{engine_number:04d}"
 
 
@@ -136,6 +163,7 @@ def make_mission_id(
     mission_number: int,
     mission_type: str,
 ) -> str:
+
     return (
         f"eng_{engine_number:04d}_"
         f"mission_{mission_number:02d}_"
@@ -143,18 +171,16 @@ def make_mission_id(
     )
 
 
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
 def build_config(
     mission_type: str,
     *,
     mission_id: str,
     random_seed: int,
 ):
-    """
-    Build the correct Stage 5 configuration.
-
-    NORMAL is intentionally handled by its dedicated builder because
-    its duration is derived from altitude/climb/descent settings.
-    """
 
     builder = MISSION_BUILDERS[mission_type]
 
@@ -165,73 +191,81 @@ def build_config(
     )
 
 
-def validate_rows(rows, mission_type: str, mission_id: str) -> None:
-    """
-    Lightweight validation before rows are committed to disk.
+# ============================================================================
+# VALIDATION
+# ============================================================================
 
-    This is intentionally not the full Stage 5 validation suite.
-    It catches catastrophic generation problems without adding a
-    second expensive simulation pass.
-    """
+def validate_rows(
+    rows,
+    mission_type: str,
+    mission_id: str,
+) -> None:
 
     if not rows:
+
         raise RuntimeError(
             f"{mission_id}: Stage 5 returned zero rows."
         )
 
     first = rows[0]
 
-    if first.time_s != 0.0:
+    if float(first.time_s) != 0.0:
+
         raise RuntimeError(
             f"{mission_id}: first timestamp is "
             f"{first.time_s}, expected 0.0."
         )
 
-    previous_time = first.time_s
+    previous_time = float(first.time_s)
 
     for index, row in enumerate(rows):
 
         if row.mission_id != mission_id:
+
             raise RuntimeError(
-                f"{mission_id}: mission_id mismatch at row {index}."
+                f"{mission_id}: mission_id mismatch "
+                f"at row {index}."
             )
 
         if row.mission_type != mission_type:
+
             raise RuntimeError(
-                f"{mission_id}: mission_type mismatch at row {index}."
+                f"{mission_id}: mission_type mismatch "
+                f"at row {index}."
             )
 
         current_time = float(row.time_s)
 
         if index > 0:
+
             dt = current_time - previous_time
 
             if abs(dt - TIMESTEP_S) > 1e-9:
+
                 raise RuntimeError(
-                    f"{mission_id}: invalid timestep at row {index}: "
-                    f"{dt} s."
+                    f"{mission_id}: invalid timestep "
+                    f"at row {index}: {dt} s."
                 )
 
         previous_time = current_time
 
+
+# ============================================================================
+# CSV WRITING
+# ============================================================================
 
 def write_rows(
     writer: csv.DictWriter,
     rows,
     engine_id: str,
 ) -> int:
-    """
-    Write one complete mission to disk immediately.
-
-    Only the current mission's rows exist in memory.
-    """
 
     count = 0
 
     for row in rows:
+
         data = row.to_dict()
 
-        # Stage 6 dataset identity.
         data["engine_id"] = engine_id
 
         writer.writerow(data)
@@ -241,9 +275,228 @@ def write_rows(
     return count
 
 
-# ---------------------------------------------------------------------------
-# Main generation
-# ---------------------------------------------------------------------------
+# ============================================================================
+# CHECKPOINT FUNCTIONS
+# ============================================================================
+
+def load_checkpoint() -> dict:
+
+    if not CHECKPOINT_FILE.exists():
+
+        return {
+            "version": 1,
+            "num_engines": NUM_ENGINES,
+            "mission_types": list(MISSION_TYPES),
+            "completed_missions": [],
+            "failed_missions": [],
+            "total_rows": 0,
+        }
+
+    try:
+
+        with CHECKPOINT_FILE.open(
+            "r",
+            encoding="utf-8",
+        ) as fh:
+
+            checkpoint = json.load(fh)
+
+    except Exception as exc:
+
+        raise RuntimeError(
+            f"Could not read checkpoint:\n"
+            f"{CHECKPOINT_FILE}"
+        ) from exc
+
+    if checkpoint.get("num_engines") != NUM_ENGINES:
+
+        raise RuntimeError(
+            "Checkpoint NUM_ENGINES does not match "
+            f"current configuration.\n"
+            f"Checkpoint : {checkpoint.get('num_engines')}\n"
+            f"Current    : {NUM_ENGINES}"
+        )
+
+    checkpoint_missions = tuple(
+        checkpoint.get("mission_types", [])
+    )
+
+    if checkpoint_missions != MISSION_TYPES:
+
+        raise RuntimeError(
+            "Checkpoint mission configuration does not "
+            "match the current mission configuration."
+        )
+
+    checkpoint.setdefault(
+        "completed_missions",
+        [],
+    )
+
+    checkpoint.setdefault(
+        "failed_missions",
+        [],
+    )
+
+    checkpoint.setdefault(
+        "total_rows",
+        0,
+    )
+
+    return checkpoint
+
+
+def save_checkpoint(
+    checkpoint: dict,
+) -> None:
+
+    temporary_file = CHECKPOINT_FILE.with_suffix(
+        ".tmp"
+    )
+
+    with temporary_file.open(
+        "w",
+        encoding="utf-8",
+    ) as fh:
+
+        json.dump(
+            checkpoint,
+            fh,
+            indent=2,
+        )
+
+        fh.flush()
+
+    temporary_file.replace(
+        CHECKPOINT_FILE
+    )
+
+
+# ============================================================================
+# OUTPUT INITIALIZATION
+# ============================================================================
+
+def ensure_output_file(
+    fieldnames,
+) -> None:
+
+    OUTPUT_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    if not OUTPUT_FILE.exists():
+
+        with OUTPUT_FILE.open(
+            "w",
+            newline="",
+            encoding="utf-8",
+        ) as fh:
+
+            writer = csv.DictWriter(
+                fh,
+                fieldnames=fieldnames,
+            )
+
+            writer.writeheader()
+
+
+def ensure_failed_file() -> None:
+
+    failed_fields = [
+        "engine_id",
+        "mission_id",
+        "mission_type",
+        "seed",
+        "error_type",
+        "error_message",
+        "traceback",
+        "timestamp",
+    ]
+
+    if not FAILED_FILE.exists():
+
+        with FAILED_FILE.open(
+            "w",
+            newline="",
+            encoding="utf-8",
+        ) as fh:
+
+            writer = csv.DictWriter(
+                fh,
+                fieldnames=failed_fields,
+            )
+
+            writer.writeheader()
+
+
+def append_failed_mission(
+    *,
+    engine_id: str,
+    mission_id: str,
+    mission_type: str,
+    seed: int,
+    exc: Exception,
+) -> None:
+
+    failed_fields = [
+        "engine_id",
+        "mission_id",
+        "mission_type",
+        "seed",
+        "error_type",
+        "error_message",
+        "traceback",
+        "timestamp",
+    ]
+
+    with FAILED_FILE.open(
+        "a",
+        newline="",
+        encoding="utf-8",
+    ) as fh:
+
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=failed_fields,
+        )
+
+        writer.writerow(
+            {
+                "engine_id":
+                    engine_id,
+
+                "mission_id":
+                    mission_id,
+
+                "mission_type":
+                    mission_type,
+
+                "seed":
+                    seed,
+
+                "error_type":
+                    type(exc).__name__,
+
+                "error_message":
+                    str(exc),
+
+                "traceback":
+                    traceback.format_exc(),
+
+                "timestamp":
+                    time.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+            }
+        )
+
+        fh.flush()
+
+
+# ============================================================================
+# MAIN GENERATOR
+# ============================================================================
 
 def main() -> None:
 
@@ -252,90 +505,174 @@ def main() -> None:
         exist_ok=True,
     )
 
-    if OUTPUT_FILE.exists():
-
-        if OVERWRITE_OUTPUT:
-            print(
-                f"Existing output will be replaced:\n"
-                f"{OUTPUT_FILE}"
-            )
-            OUTPUT_FILE.unlink()
-
-        else:
-            raise RuntimeError(
-                f"Output already exists:\n{OUTPUT_FILE}\n"
-                f"Set OVERWRITE_OUTPUT=True to regenerate."
-            )
-
     fieldnames = [
         "engine_id",
         *TELEMETRY_FIELDNAMES,
     ]
 
-    total_missions = NUM_ENGINES * len(MISSION_TYPES)
+    ensure_output_file(fieldnames)
 
-    total_rows = 0
-    completed_missions = 0
-    failed_missions = 0
+    ensure_failed_file()
+
+    checkpoint = load_checkpoint()
+
+    completed_missions = set(
+        checkpoint.get(
+            "completed_missions",
+            [],
+        )
+    )
+
+    failed_missions = set(
+        checkpoint.get(
+            "failed_missions",
+            [],
+        )
+    )
+
+    total_missions = (
+        NUM_ENGINES *
+        len(MISSION_TYPES)
+    )
+
+    already_processed = (
+        len(completed_missions)
+        + len(failed_missions)
+    )
+
+    total_rows = int(
+        checkpoint.get(
+            "total_rows",
+            0,
+        )
+    )
 
     dataset_start = time.perf_counter()
 
     print("=" * 100)
-    print("STAGE 6 - HEALTHY DATASET GENERATION")
+    print(
+        "STAGE 6 - CHECKPOINTED "
+        "FAULT-TOLERANT DATASET GENERATOR"
+    )
     print("=" * 100)
-    print(f"Engines              : {NUM_ENGINES}")
-    print(f"Mission types        : {len(MISSION_TYPES)}")
-    print(f"Missions / engine    : {len(MISSION_TYPES)}")
-    print(f"Total missions       : {total_missions}")
-    print(f"Timestep             : {TIMESTEP_S} s")
-    print(f"Output               : {OUTPUT_FILE}")
+
+    print(
+        f"Engines              : {NUM_ENGINES}"
+    )
+
+    print(
+        f"Mission types        : "
+        f"{len(MISSION_TYPES)}"
+    )
+
+    print(
+        f"Missions / engine    : "
+        f"{len(MISSION_TYPES)}"
+    )
+
+    print(
+        f"Total missions       : "
+        f"{total_missions}"
+    )
+
+    print(
+        f"Timestep             : "
+        f"{TIMESTEP_S} s"
+    )
+
+    print(
+        f"Successful CSV       : "
+        f"{OUTPUT_FILE}"
+    )
+
+    print(
+        f"Failed missions CSV  : "
+        f"{FAILED_FILE}"
+    )
+
+    print(
+        f"Checkpoint            : "
+        f"{CHECKPOINT_FILE}"
+    )
+
     print()
-    print("Memory strategy      : one mission at a time")
-    print("Engine physics       : current validated Stage 5 model")
-    print("Virtual variation    : NOT injected yet")
+    print(
+        f"Previously processed : "
+        f"{already_processed}/{total_missions}"
+    )
+
+    print(
+        f"Previously successful: "
+        f"{len(completed_missions)}"
+    )
+
+    print(
+        f"Previously failed    : "
+        f"{len(failed_missions)}"
+    )
+
     print()
-    print("Generation started...")
+    print(
+        "Resume mode           : ENABLED"
+    )
+
+    print(
+        "Checkpoint frequency  : AFTER EVERY MISSION"
+    )
+
+    print(
+        "Failure handling      : LOG + SKIP + CONTINUE"
+    )
+
+    print("=" * 100)
     print()
+
+    # ========================================================================
+    # OPEN EXISTING OUTPUT IN APPEND MODE
+    # ========================================================================
 
     with OUTPUT_FILE.open(
-        "w",
+        "a",
         newline="",
         encoding="utf-8",
-    ) as fh:
+    ) as output_fh:
 
         writer = csv.DictWriter(
-            fh,
+            output_fh,
             fieldnames=fieldnames,
         )
 
-        writer.writeheader()
-
-        # ---------------------------------------------------------------
-        # Engine loop
-        # ---------------------------------------------------------------
+        # ====================================================================
+        # ENGINE LOOP
+        # ====================================================================
 
         for engine_number in range(
             1,
             NUM_ENGINES + 1,
         ):
 
-            engine_id = make_engine_id(engine_number)
+            engine_id = make_engine_id(
+                engine_number
+            )
 
             engine_start = time.perf_counter()
+
             engine_rows = 0
+            engine_completed = 0
+            engine_failed = 0
+
+            print("-" * 100)
 
             print(
-                "-" * 100
+                f"ENGINE "
+                f"{engine_number}/{NUM_ENGINES} "
+                f"({engine_id})",
+                flush=True,
             )
 
-            print(
-                f"ENGINE {engine_number}/{NUM_ENGINES} "
-                f"({engine_id})"
-            )
-
-            # -----------------------------------------------------------
-            # Mission loop
-            # -----------------------------------------------------------
+            # =================================================================
+            # MISSION LOOP
+            # =================================================================
 
             for mission_number, mission_type in enumerate(
                 MISSION_TYPES,
@@ -353,21 +690,46 @@ def main() -> None:
                     mission_number,
                 )
 
+                # -------------------------------------------------------------
+                # RESUME CHECK
+                # -------------------------------------------------------------
+
+                if (
+                    mission_id in completed_missions
+                    or mission_id in failed_missions
+                ):
+
+                    print(
+                        f"  SKIP | "
+                        f"{mission_type:<18} | "
+                        f"{mission_id} | "
+                        f"already processed",
+                        flush=True,
+                    )
+
+                    continue
+
                 mission_start = time.perf_counter()
 
+                processed_count = (
+                    len(completed_missions)
+                    + len(failed_missions)
+                    + 1
+                )
+
                 print(
-                    f"  [{completed_missions + 1:04d}/"
+                    f"  [{processed_count:04d}/"
                     f"{total_missions:04d}] "
                     f"{mission_type:<18} "
                     f"seed={seed}",
                     flush=True,
                 )
 
-                try:
+                # =============================================================
+                # RUN MISSION
+                # =============================================================
 
-                    # ---------------------------------------------------
-                    # Build validated Stage 5 configuration.
-                    # ---------------------------------------------------
+                try:
 
                     config = build_config(
                         mission_type,
@@ -375,19 +737,9 @@ def main() -> None:
                         random_seed=seed,
                     )
 
-                    # ---------------------------------------------------
-                    # Run ONE complete mission.
-                    #
-                    # Important:
-                    # run_mission() returns a list for this mission only.
-                    # It is written immediately and then discarded.
-                    # ---------------------------------------------------
-
-                    rows = run_mission(config)
-
-                    # ---------------------------------------------------
-                    # Lightweight integrity checks.
-                    # ---------------------------------------------------
+                    rows = run_mission(
+                        config
+                    )
 
                     validate_rows(
                         rows,
@@ -395,60 +747,149 @@ def main() -> None:
                         mission_id,
                     )
 
-                    # ---------------------------------------------------
-                    # Write immediately to CSV.
-                    # ---------------------------------------------------
-
                     row_count = write_rows(
                         writer,
                         rows,
                         engine_id,
                     )
 
-                    # Flush after every mission so progress is safely
-                    # committed to disk instead of remaining buffered.
-                    fh.flush()
+                    # ---------------------------------------------------------
+                    # CRITICAL:
+                    # Flush CSV BEFORE marking mission complete.
+                    # ---------------------------------------------------------
+
+                    output_fh.flush()
+
+                    # ---------------------------------------------------------
+                    # Update checkpoint.
+                    # ---------------------------------------------------------
+
+                    completed_missions.add(
+                        mission_id
+                    )
+
+                    checkpoint[
+                        "completed_missions"
+                    ] = sorted(
+                        completed_missions
+                    )
+
+                    checkpoint[
+                        "failed_missions"
+                    ] = sorted(
+                        failed_missions
+                    )
+
+                    total_rows += row_count
+
+                    checkpoint[
+                        "total_rows"
+                    ] = total_rows
+
+                    save_checkpoint(
+                        checkpoint
+                    )
+
+                    # ---------------------------------------------------------
+                    # Statistics
+                    # ---------------------------------------------------------
+
+                    engine_rows += row_count
+                    engine_completed += 1
 
                     elapsed = (
                         time.perf_counter()
                         - mission_start
                     )
 
-                    total_rows += row_count
-                    engine_rows += row_count
-                    completed_missions += 1
-
                     print(
                         f"      PASS | "
                         f"{row_count:,} rows | "
-                        f"{elapsed:.2f} s",
+                        f"{elapsed:.2f} s | "
+                        f"checkpoint saved",
                         flush=True,
                     )
 
-                    # Explicitly release the mission list before the
-                    # next mission.
                     del rows
+
+                # =============================================================
+                # MISSION FAILURE
+                # =============================================================
 
                 except Exception as exc:
 
-                    failed_missions += 1
+                    engine_failed += 1
+
+                    # ---------------------------------------------------------
+                    # Save failure separately.
+                    # ---------------------------------------------------------
+
+                    append_failed_mission(
+                        engine_id=engine_id,
+                        mission_id=mission_id,
+                        mission_type=mission_type,
+                        seed=seed,
+                        exc=exc,
+                    )
+
+                    # ---------------------------------------------------------
+                    # Mark ONLY THIS mission as failed.
+                    # ---------------------------------------------------------
+
+                    failed_missions.add(
+                        mission_id
+                    )
+
+                    checkpoint[
+                        "completed_missions"
+                    ] = sorted(
+                        completed_missions
+                    )
+
+                    checkpoint[
+                        "failed_missions"
+                    ] = sorted(
+                        failed_missions
+                    )
+
+                    checkpoint[
+                        "total_rows"
+                    ] = total_rows
+
+                    save_checkpoint(
+                        checkpoint
+                    )
 
                     print(
                         f"      FAIL | "
-                        f"{type(exc).__name__}: {exc}",
+                        f"{type(exc).__name__}: "
+                        f"{exc}",
                         flush=True,
                     )
 
-                    # Stop immediately rather than producing a partially
-                    # corrupted scientific dataset.
-                    raise RuntimeError(
-                        f"Dataset generation stopped at "
-                        f"{engine_id} / {mission_id}."
-                    ) from exc
+                    print(
+                        f"      Logged to: "
+                        f"{FAILED_FILE}",
+                        flush=True,
+                    )
 
-            # -----------------------------------------------------------
-            # Engine summary
-            # -----------------------------------------------------------
+                    print(
+                        f"      Mission skipped. "
+                        f"Generation continues.",
+                        flush=True,
+                    )
+
+                    # ---------------------------------------------------------
+                    # IMPORTANT:
+                    # DO NOT raise here.
+                    # Continue to the next mission.
+                    # ---------------------------------------------------------
+
+                    continue
+
+            # =================================================================
+            # ENGINE SUMMARY
+            # =================================================================
 
             engine_elapsed = (
                 time.perf_counter()
@@ -458,98 +899,185 @@ def main() -> None:
             print(
                 f"  ENGINE COMPLETE | "
                 f"rows={engine_rows:,} | "
+                f"successful={engine_completed} | "
+                f"failed={engine_failed} | "
                 f"time={engine_elapsed:.2f} s",
                 flush=True,
             )
 
-            # -----------------------------------------------------------
-            # Overall progress
-            # -----------------------------------------------------------
+            # =================================================================
+            # OVERALL PROGRESS
+            # =================================================================
+
+            processed = (
+                len(completed_missions)
+                + len(failed_missions)
+            )
+
+            remaining = (
+                total_missions
+                - processed
+            )
 
             dataset_elapsed = (
                 time.perf_counter()
                 - dataset_start
             )
 
-            average_mission_time = (
-                dataset_elapsed
-                / completed_missions
-            )
+            if processed > 0:
 
-            remaining_missions = (
-                total_missions
-                - completed_missions
-            )
+                average_time = (
+                    dataset_elapsed
+                    / processed
+                )
 
-            estimated_remaining = (
-                average_mission_time
-                * remaining_missions
-            )
+                estimated_remaining = (
+                    average_time *
+                    remaining
+                )
+
+            else:
+
+                estimated_remaining = 0.0
 
             print(
                 f"  TOTAL PROGRESS | "
-                f"missions={completed_missions}/"
+                f"processed={processed}/"
                 f"{total_missions} | "
+                f"successful="
+                f"{len(completed_missions)} | "
+                f"failed="
+                f"{len(failed_missions)} | "
                 f"rows={total_rows:,} | "
-                f"elapsed={dataset_elapsed / 3600:.2f} h | "
-                f"ETA={estimated_remaining / 3600:.2f} h",
+                f"ETA="
+                f"{estimated_remaining / 3600:.2f} h",
                 flush=True,
             )
 
-    # -----------------------------------------------------------------------
-    # Final report
-    # -----------------------------------------------------------------------
+    # =========================================================================
+    # FINAL REPORT
+    # =========================================================================
 
-    total_elapsed = (
+    elapsed = (
         time.perf_counter()
         - dataset_start
     )
 
+    processed = (
+        len(completed_missions)
+        + len(failed_missions)
+    )
+
     print()
     print("=" * 100)
-    print("STAGE 6 DATASET GENERATION COMPLETE")
+    print("STAGE 6 GENERATION COMPLETE")
     print("=" * 100)
 
-    print(f"Engines generated     : {NUM_ENGINES}")
-    print(f"Mission types         : {len(MISSION_TYPES)}")
-    print(f"Missions completed    : {completed_missions}")
-    print(f"Missions failed       : {failed_missions}")
-    print(f"Rows generated        : {total_rows:,}")
+    print(
+        f"Engines configured    : "
+        f"{NUM_ENGINES}"
+    )
 
     print(
-        f"Runtime               : "
-        f"{total_elapsed:.2f} seconds"
+        f"Total missions        : "
+        f"{total_missions}"
+    )
+
+    print(
+        f"Processed missions    : "
+        f"{processed}"
+    )
+
+    print(
+        f"Successful missions   : "
+        f"{len(completed_missions)}"
+    )
+
+    print(
+        f"Failed missions       : "
+        f"{len(failed_missions)}"
+    )
+
+    print(
+        f"Remaining missions    : "
+        f"{total_missions - processed}"
+    )
+
+    print(
+        f"Rows generated        : "
+        f"{total_rows:,}"
     )
 
     print(
         f"Runtime               : "
-        f"{total_elapsed / 60:.2f} minutes"
+        f"{elapsed:.2f} seconds"
     )
 
     print(
         f"Runtime               : "
-        f"{total_elapsed / 3600:.2f} hours"
+        f"{elapsed / 60:.2f} minutes"
     )
 
-    if completed_missions:
+    print(
+        f"Runtime               : "
+        f"{elapsed / 3600:.2f} hours"
+    )
+
+    print()
+    print(
+        f"Healthy CSV           : "
+        f"{OUTPUT_FILE}"
+    )
+
+    print(
+        f"Failed CSV            : "
+        f"{FAILED_FILE}"
+    )
+
+    print(
+        f"Checkpoint             : "
+        f"{CHECKPOINT_FILE}"
+    )
+
+    print()
+
+    if processed == total_missions:
+
+        if len(failed_missions) == 0:
+
+            print(
+                "STATUS: PASS"
+            )
+
+        else:
+
+            print(
+                "STATUS: COMPLETED WITH FAILURES"
+            )
+
+            print(
+                f"{len(failed_missions)} "
+                f"mission(s) failed and were "
+                f"logged separately."
+            )
+
+    else:
+
         print(
-            f"Average rows/mission  : "
-            f"{total_rows / completed_missions:.1f}"
+            "STATUS: INCOMPLETE"
         )
 
         print(
-            f"Average time/mission  : "
-            f"{total_elapsed / completed_missions:.2f} s"
+            f"{total_missions - processed} "
+            f"mission(s) remain."
         )
 
-    print()
-    print(f"CSV output:")
-    print(OUTPUT_FILE)
-
-    print()
-    print("STATUS: PASS")
     print("=" * 100)
 
+
+# ============================================================================
+# ENTRY POINT
+# ============================================================================
 
 if __name__ == "__main__":
     main()
