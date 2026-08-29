@@ -44,7 +44,7 @@ from engine_model.stage7_fault_models import apply_fault
 # Production configuration
 # ---------------------------------------------------------------------------
 
-NUM_ENGINES = 250
+NUM_ENGINES = 10 
 TIMESTEP_S = 1.0
 RANDOM_SEED_BASE = 2_000_000
 
