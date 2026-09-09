@@ -61,23 +61,6 @@ ENGINE_END = NUM_ENGINES
 # One faulted mission per selected fault/severity/mission combination.
 # Sensor drift must not always land on the same channel, or the class
 # collapses into whatever that channel normally means. Rotated per mission.
-_SHARED_ENGINE_MODEL = None
-
-
-def _shared_engine_model():
-    """One engine model for the whole run. The constructor builds a Delaunay
-    triangulation of the full performance map, which cost 2.4 s per mission
-    when every mission built its own."""
-    global _SHARED_ENGINE_MODEL
-    if _SHARED_ENGINE_MODEL is None:
-        from engine_model.stage1_3_hybrid_engine_output import (
-            Stage13HybridEngineOutput,
-        )
-
-        _SHARED_ENGINE_MODEL = Stage13HybridEngineOutput()
-    return _SHARED_ENGINE_MODEL
-
-
 DRIFT_CHANNELS = (
     "coolant_temp_C",
     "oil_temperature_C",
@@ -322,11 +305,7 @@ def main() -> None:
                                 mission_id=mission_id,
                                 seed=seed,
                             )
-                            healthy_rows = run_mission_realistic(
-                                config,
-                                engine_seed=engine_number,
-                                engine_model=_shared_engine_model(),
-                            )
+                            healthy_rows = run_mission_realistic(config, engine_seed=engine_number)
 
                             # Apply Stage-7 abnormal state.
                             # Continuous severity: jitter the discrete level by

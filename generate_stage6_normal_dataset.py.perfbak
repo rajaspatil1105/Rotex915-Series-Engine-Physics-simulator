@@ -126,23 +126,6 @@ MISSION_BUILDERS = {
 }
 
 
-_SHARED_ENGINE_MODEL = None
-
-
-def _shared_engine_model():
-    """One engine model for the whole run. The constructor builds a Delaunay
-    triangulation of the full performance map, which cost 2.4 s per mission
-    when every mission built its own."""
-    global _SHARED_ENGINE_MODEL
-    if _SHARED_ENGINE_MODEL is None:
-        from engine_model.stage1_3_hybrid_engine_output import (
-            Stage13HybridEngineOutput,
-        )
-
-        _SHARED_ENGINE_MODEL = Stage13HybridEngineOutput()
-    return _SHARED_ENGINE_MODEL
-
-
 MISSION_TYPES = (
     MISSION_TYPE_NORMAL,
     MISSION_TYPE_HIGH_ALTITUDE,
@@ -758,7 +741,6 @@ def main() -> None:
                     rows = run_mission_realistic(
                         config,
                         engine_seed=engine_number,
-                        engine_model=_shared_engine_model(),
                     )
 
                     validate_rows(
