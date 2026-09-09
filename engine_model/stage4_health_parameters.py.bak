@@ -24,22 +24,6 @@ except ModuleNotFoundError:  # pragma: no cover - import compatibility shim
     from engine_model.stage1_3_hybrid_engine_output import EngineState
 
 
-try:
-    from stage4_realism import (
-        coolant_equilibrium_C,
-        egt_mean_equilibrium_C,
-        egt_spread_equilibrium_C,
-        oil_temperature_equilibrium_C,
-    )
-except ModuleNotFoundError:  # pragma: no cover - import compatibility shim
-    from engine_model.stage4_realism import (
-        coolant_equilibrium_C,
-        egt_mean_equilibrium_C,
-        egt_spread_equilibrium_C,
-        oil_temperature_equilibrium_C,
-    )
-
-
 CSV_AUTHORITATIVE = "calibrated_csv"
 PROVENANCE_LABELS = {
     "csv_authoritative",
@@ -303,11 +287,23 @@ def get_health_state(
     pressure_ratio = _clamp(p_plenum_bar / 1.55, 0.0, 1.25)
     ambient_positive = max(0.0, ambient_temp_C)
 
-    coolant_temp_C = coolant_equilibrium_C(power_kW, altitude_ft, ambient_temp_C)
+    coolant_temp_C = _clamp(
+        55.0 + 22.0 * load_ratio + 8.0 * pressure_ratio + 0.06 * ambient_positive + 0.00025 * altitude_ft,
+        OIL_TEMPERATURE_MIN_START_C,
+        MAX_COOLANT_TEMP_C,
+    )
 
     spread_limit = egt_spread_limit_from_fuel_flow(fuelflow_kgh)
-    egt_mean_C = egt_mean_equilibrium_C(power_kW, mat_C)
-    egt_spread_C = egt_spread_equilibrium_C(power_kW, spread_limit)
+    egt_mean_C = _clamp(
+        330.0 + 260.0 * load_ratio + 0.45 * mat_C + 0.02 * (rpm - 3000.0) + 4.0 * pressure_ratio,
+        200.0,
+        MAX_EGT_C,
+    )
+    egt_spread_C = _clamp(
+        70.0 + 55.0 * load_ratio + 12.0 * pressure_ratio + 0.03 * max(0.0, rpm - 3000.0) / 100.0,
+        20.0,
+        spread_limit,
+    )
     egt_offsets = (-0.5, -1.0 / 6.0, 1.0 / 6.0, 0.5)
     egt_values = [
         _clamp(egt_mean_C + offset * egt_spread_C, 0.0, MAX_EGT_C) for offset in egt_offsets
@@ -316,7 +312,11 @@ def get_health_state(
     egt_max_C = max(egt_values)
     egt_spread_C = egt_max_C - egt_min_C
 
-    oil_temperature_C = oil_temperature_equilibrium_C(coolant_temp_C, power_kW)
+    oil_temperature_C = _clamp(
+        64.0 + 0.15 * power_kW + 0.00035 * altitude_ft + 0.02 * ambient_positive,
+        OIL_TEMPERATURE_MIN_START_C,
+        OIL_TEMPERATURE_MAX_C,
+    )
     temp_penalty = max(0.0, oil_temperature_C - 100.0) / 40.0
     load_bonus = 0.6 * load_ratio + 0.4 * pressure_ratio
     if rpm < 3500.0:

@@ -160,7 +160,6 @@ def apply_fault(
     fault_type: str,
     severity: str,
     seed: int,
-    magnitude_scale: float = 1.0,
     sensor_channel: str = "oil_temperature_C",
 ) -> list[dict[str, object]]:
     """Apply one reproducible Stage-7 fault to one healthy mission."""
@@ -201,11 +200,6 @@ def apply_fault(
         oil_pressure = float(row.oil_pressure_bar)
         oil_temp = float(row.oil_temperature_C)
         vibration = float(row.vibration_amplitude)
-        power_kW = float(row.power_kW)
-        torque_Nm = float(row.torque_Nm)
-        fuelflow_kgh = float(row.fuelflow_kgh)
-        power_scale = 1.0
-        fuel_scale = 1.0
 
         # Stage-7-only fuel-pressure state.
         healthy_fuel_pressure = _healthy_fuel_pressure_bar(row, rng)
@@ -218,7 +212,7 @@ def apply_fault(
         # MISFIRE
         # ---------------------------------------------------------------
         if fault_type == "misfire":
-            effect = MISFIRE_COMBUSTION_EFFECT[severity] * env * magnitude_scale
+            effect = MISFIRE_COMBUSTION_EFFECT[severity] * env
 
             # Deterministic cylinder selection per mission.
             # The same cylinder is affected throughout the event.
@@ -231,17 +225,11 @@ def apply_fault(
             # Small coherent increase in vibration proxy.
             vibration *= 1.0 + 0.80 * effect
 
-            # A cylinder that fails to burn properly stops contributing its
-            # share of the work while its fuel is still delivered, so power
-            # falls and specific fuel consumption worsens.
-            power_scale *= 1.0 - 0.25 * (0.70 * effect)
-            fuel_scale *= 1.0 + 0.10 * effect
-
         # ---------------------------------------------------------------
         # COOLING DEGRADATION
         # ---------------------------------------------------------------
         elif fault_type == "cooling_degradation":
-            loss = COOLING_EFFECTIVENESS_LOSS[severity] * env * magnitude_scale
+            loss = COOLING_EFFECTIVENESS_LOSS[severity] * env
 
             # Existing Stage-4 coolant temperature is a thermal proxy.
             # Approximate additional thermal rise from reduced rejection.
@@ -252,16 +240,11 @@ def apply_fault(
             oil_headroom = max(0.0, 130.0 - oil_temp)
             oil_temp += oil_headroom * (0.20 * loss)
 
-            # Reduced charge density and knock-avoidance retard at elevated
-            # coolant temperature cost a small amount of power.
-            power_scale *= 1.0 - 0.04 * loss
-            fuel_scale *= 1.0 + 0.02 * loss
-
         # ---------------------------------------------------------------
         # LUBRICATION DEGRADATION
         # ---------------------------------------------------------------
         elif fault_type == "lubrication_degradation":
-            loss = LUBRICATION_FLOW_LOSS[severity] * env * magnitude_scale
+            loss = LUBRICATION_FLOW_LOSS[severity] * env
 
             # Reduce pressure relative to the existing proxy.
             oil_pressure *= 1.0 - loss
@@ -271,10 +254,6 @@ def apply_fault(
 
             # Mechanical distress proxy.
             vibration *= 1.0 + 0.25 * loss
-
-            # Higher friction from reduced oil supply is a direct work loss.
-            power_scale *= 1.0 - 0.06 * loss
-            fuel_scale *= 1.0 + 0.03 * loss
 
         # ---------------------------------------------------------------
         # SENSOR DRIFT
@@ -286,7 +265,7 @@ def apply_fault(
                 )
 
             true_sensor_value = float(getattr(row, sensor_channel))
-            drift = SENSOR_DRIFT_FRACTION[severity] * env * magnitude_scale
+            drift = SENSOR_DRIFT_FRACTION[severity] * env
             measured_sensor_value = true_sensor_value * (1.0 + drift)
 
         # ---------------------------------------------------------------
@@ -302,17 +281,6 @@ def apply_fault(
         # ---------------------------------------------------------------
         # Recalculate derived EGT values after fault.
         # ---------------------------------------------------------------
-        # Low rail pressure leans the mixture and reduces delivered power.
-        if fault_type == "fuel_pressure_deviation" and healthy_fuel_pressure > 0.0:
-            deficit = max(0.0, 1.0 - fuel_pressure / healthy_fuel_pressure)
-            power_scale *= 1.0 - 0.55 * deficit
-            fuel_scale *= 1.0 - 0.45 * deficit
-            egt = [v + 90.0 * deficit for v in egt]
-
-        power_kW = max(0.0, power_kW * power_scale)
-        fuelflow_kgh = max(0.0, fuelflow_kgh * fuel_scale)
-        torque_Nm = torque_Nm * power_scale
-
         egt_min = min(egt)
         egt_max = min(MAX_EGT_C, max(egt))
         egt_mean = sum(egt) / 4.0
@@ -369,9 +337,6 @@ def apply_fault(
             vibration_1x=vibration,
             vibration_2x=vibration * 0.6,
             vibration_3x=vibration * 0.4,
-            power_kW=power_kW,
-            torque_Nm=torque_Nm,
-            fuelflow_kgh=fuelflow_kgh,
         )
 
         if fault_type == "sensor_drift":

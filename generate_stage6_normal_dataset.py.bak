@@ -69,7 +69,6 @@ from engine_model.stage5_mission_config import (
 from engine_model.stage5_simulation_pipeline import (
     TELEMETRY_FIELDNAMES,
     run_mission,
-    run_mission_realistic,
 )
 
 
@@ -738,9 +737,8 @@ def main() -> None:
                         random_seed=seed,
                     )
 
-                    rows = run_mission_realistic(
-                        config,
-                        engine_seed=engine_number,
+                    rows = run_mission(
+                        config
                     )
 
                     validate_rows(

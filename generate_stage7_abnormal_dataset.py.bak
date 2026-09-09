@@ -16,8 +16,6 @@ committing to the full 250-engine production run.
 
 from __future__ import annotations
 
-import random
-
 import csv
 import json
 import time
@@ -37,11 +35,7 @@ from engine_model.stage5_mission_config import (
     build_high_power_mission_config,
     build_rapid_throttle_mission_config,
 )
-from engine_model.stage5_simulation_pipeline import (
-    TELEMETRY_FIELDNAMES,
-    run_mission,
-    run_mission_realistic,
-)
+from engine_model.stage5_simulation_pipeline import TELEMETRY_FIELDNAMES, run_mission
 from engine_model.stage7_fault_config import ACTIVE_FAULTS, MODEL_VERSION
 from engine_model.stage7_fault_models import apply_fault
 
@@ -50,7 +44,7 @@ from engine_model.stage7_fault_models import apply_fault
 # Production configuration
 # ---------------------------------------------------------------------------
 
-NUM_ENGINES = 40 
+NUM_ENGINES = 10 
 TIMESTEP_S = 1.0
 RANDOM_SEED_BASE = 2_000_000
 
@@ -59,17 +53,6 @@ ENGINE_START = 1
 ENGINE_END = NUM_ENGINES
 
 # One faulted mission per selected fault/severity/mission combination.
-# Sensor drift must not always land on the same channel, or the class
-# collapses into whatever that channel normally means. Rotated per mission.
-DRIFT_CHANNELS = (
-    "coolant_temp_C",
-    "oil_temperature_C",
-    "oil_pressure_bar",
-    "fuelflow_kgh",
-    "p_plenum_bar",
-    "EGT1_C",
-)
-
 SEVERITIES = ("mild", "moderate", "severe")
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "stage7_outputs"
@@ -305,26 +288,15 @@ def main() -> None:
                                 mission_id=mission_id,
                                 seed=seed,
                             )
-                            healthy_rows = run_mission_realistic(config, engine_seed=engine_number)
+                            healthy_rows = run_mission(config)
 
                             # Apply Stage-7 abnormal state.
-                            # Continuous severity: jitter the discrete level by
-                            # +/-25 percent so the classifier sees a severity
-                            # gradient instead of three isolated points. Derived
-                            # from the mission seed, so it stays reproducible.
-                            magnitude_scale = 0.75 + 0.50 * random.Random(seed * 31 + 17).random()
-
                             abnormal_rows = apply_fault(
                                 healthy_rows,
                                 engine_id=engine_id,
                                 fault_type=fault_type,
                                 severity=severity,
                                 seed=seed,
-                                magnitude_scale=magnitude_scale,
-                                sensor_channel=DRIFT_CHANNELS[
-                                    (engine_number + mission_number + severity_index)
-                                    % len(DRIFT_CHANNELS)
-                                ],
                             )
 
                             for row in abnormal_rows:
