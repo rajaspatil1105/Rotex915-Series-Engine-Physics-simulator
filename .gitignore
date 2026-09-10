@@ -33,4 +33,9 @@ temp/
 Thumbs.db
 
 # Generated Stage 5 data
-stage5_outputs/*.csv
+stage5_outputs/*.csvmaster_dataset/*.csv
+stage6_outputs/*.csv
+stage7_outputs/*.csv
+*.parquet
+*.perfbak
+*.engbak

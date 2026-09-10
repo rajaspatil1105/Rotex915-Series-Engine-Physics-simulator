@@ -49,7 +49,7 @@ NORMAL_ENGINE_MIN = 1
 NORMAL_ENGINE_MAX = 250
 
 ABNORMAL_ENGINE_MIN = 1
-ABNORMAL_ENGINE_MAX = 10
+ABNORMAL_ENGINE_MAX = 40
 
 ABNORMAL_TARGET_OFFSET = 250
 
@@ -780,9 +780,9 @@ def main():
         f"{len(abnormal_engines)}"
     )
 
-    if len(abnormal_engines) != 10:
+    if len(abnormal_engines) != ABNORMAL_ENGINE_MAX:
         fail(
-            f"Expected 10 abnormal engines, "
+            f"Expected {ABNORMAL_ENGINE_MAX} abnormal engines, "
             f"found {len(abnormal_engines)}."
         )
 
@@ -801,11 +801,11 @@ def main():
     if abnormal_numbers != expected_abnormal_numbers:
         fail(
             "Abnormal engine IDs are not exactly "
-            "ENG_0001 through ENG_0010."
+            f"ENG_0001 through ENG_{ABNORMAL_ENGINE_MAX:04d}."
         )
 
     print(
-        "Abnormal engines: ENG_0001 -> ENG_0010"
+        f"Abnormal engines: ENG_0001 -> ENG_{ABNORMAL_ENGINE_MAX:04d}"
     )
 
     print(
@@ -1117,7 +1117,7 @@ def main():
     )
 
     expected_final_numbers = list(
-        range(1, 261)
+        range(1, ABNORMAL_TARGET_OFFSET + ABNORMAL_ENGINE_MAX + 1)
     )
 
     if final_engine_numbers != (
@@ -1125,7 +1125,7 @@ def main():
     ):
         fail(
             "Final engine IDs are not exactly "
-            "ENG_0001 through ENG_0260."
+            f"ENG_0001 through ENG_{ABNORMAL_TARGET_OFFSET + ABNORMAL_ENGINE_MAX:04d}."
         )
 
     print(
@@ -1133,11 +1133,12 @@ def main():
     )
 
     print(
-        "Abnormal engines: ENG_0251 -> ENG_0260"
+        f"Abnormal engines: ENG_{ABNORMAL_TARGET_OFFSET + 1:04d} -> "
+        f"ENG_{ABNORMAL_TARGET_OFFSET + ABNORMAL_ENGINE_MAX:04d}"
     )
 
     print(
-        "Unique engines  : 260"
+        f"Unique engines  : {ABNORMAL_TARGET_OFFSET + ABNORMAL_ENGINE_MAX}"
     )
 
     print(
@@ -1260,7 +1261,7 @@ def main():
     )
 
     print(
-        "Engines : 260"
+        f"Engines : {ABNORMAL_TARGET_OFFSET + ABNORMAL_ENGINE_MAX}"
     )
 
     print(
@@ -1268,7 +1269,8 @@ def main():
     )
 
     print(
-        "Abnormal: ENG_0251 -> ENG_0260"
+        f"Abnormal: ENG_{ABNORMAL_TARGET_OFFSET + 1:04d} -> "
+        f"ENG_{ABNORMAL_TARGET_OFFSET + ABNORMAL_ENGINE_MAX:04d}"
     )
 
     print()
